@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional
+from typing import ClassVar, Optional
 from cobra.model.fv import Tenant as FvTenant
 
 
@@ -31,6 +31,10 @@ class Tenant:
         >>> print(tenant.mo.name)
         'common'
     """
+    CLASSNAME: ClassVar[str] = FvTenant.meta.moClassName  # 'fvTenant'
+    PREFIX: ClassVar[str] = FvTenant.meta.rnPrefixes[0][0]   # 'tn-'
+    
+    # Instance attributes
     dn: str
     name: str
     description: str = ""
@@ -39,7 +43,7 @@ class Tenant:
     
     def __post_init__(self):
         """Validate DN and name consistency"""
-        expected_dn = f"uni/tn-{self.name}"
+        expected_dn = f"uni/{self.PREFIX}{self.name}"
         if self.dn != expected_dn:
             raise ValueError(
                 f"DN '{self.dn}' does not match name '{self.name}'. "

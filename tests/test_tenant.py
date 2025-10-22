@@ -138,3 +138,22 @@ def test_tenant_immutability():
     
     with pytest.raises(Exception):
         tenant.description = 'changed'
+
+
+def test_tenant_class_constants():
+    """Test Cobra SDK metadata constants"""
+    # Test CLASSNAME constant
+    assert Tenant.CLASSNAME == 'fvTenant'
+    assert isinstance(Tenant.CLASSNAME, str)
+    
+    # Test PREFIX constant (extracted from tuple format)
+    assert Tenant.PREFIX == 'tn-'
+    assert isinstance(Tenant.PREFIX, str)
+    
+    # Verify PREFIX is used correctly in DN construction
+    tenant = Tenant(dn='uni/tn-production', name='production')
+    assert tenant.dn == f"uni/{Tenant.PREFIX}{tenant.name}"
+    
+    # Test DN validation uses PREFIX
+    expected_dn = f"uni/{Tenant.PREFIX}production"
+    assert expected_dn == 'uni/tn-production'
