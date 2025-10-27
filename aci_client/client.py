@@ -8,10 +8,10 @@ from .exceptions import ConnectionError, AuthenticationError
 class ACIClient:
     """
     Client for interacting with Cisco ACI
-    
+
     This class wraps Cobra SDK's MoDirectory to provide a simplified interface
     for common operations while maintaining full access to Cobra SDK functionality.
-    
+
     Note: Automatically logs in to APIC on initialization.
 
     Args:
@@ -33,15 +33,15 @@ class ACIClient:
     Example:
         >>> # Simple usage (auto-login on init)
         >>> aci = ACIClient('https://apic', 'admin', 'password')
-        >>> 
+        >>>
         >>> # Query tenants
         >>> tenants = aci.lookupByClass('fvTenant')
         >>> for tenant in tenants:
         ...     print(tenant.name)
-        >>> 
+        >>>
         >>> # Lookup specific object (with full subtree and config-only by default)
         >>> tenant = aci.lookupByDn('uni/tn-common')
-        >>> 
+        >>>
         >>> # Logout when done
         >>> aci.logout()
 
@@ -70,7 +70,7 @@ class ACIClient:
     def login(self):
         """
         Login to APIC
-        
+
         Note: This is called automatically on initialization.
         You only need to call this manually if you want to reconnect after logout.
 
@@ -106,81 +106,97 @@ class ACIClient:
         except Exception as e:
             raise AuthenticationError(f"Re-authentication failed: {e}")
 
-    def lookupByClass(self, className, parentDn=None, **queryParams):
+    def lookupByClass(self, className, parentDn=None, subtree='full', propInclude='config-only', **queryParams):
         """
         Lookup managed objects by class name
-        
+
         Wrapper for MoDirectory.lookupByClass()
-        
+
         Args:
             className: Class name (e.g., 'fvTenant', 'fvBD', 'fvAp')
             parentDn: Parent distinguished name to scope the query
-            **queryParams: Additional query parameters (propFilter, orderBy, etc.)
-            
+            subtree: Subtree scope (same values as Cobra SDK MoDirectory.lookupByClass) - default: 'full'
+            propInclude: Property include mode (same values as Cobra SDK MoDirectory.lookupByClass) - default: 'config-only'
+            **queryParams: Additional query parameters (same as Cobra SDK MoDirectory.lookupByClass)
+
         Returns:
             List of managed objects
-            
+
         Example:
-            >>> # Get all tenants
+            >>> # Get all tenants (config data only)
             >>> tenants = aci.lookupByClass('fvTenant')
-            >>> 
+            >>>
             >>> # Get tenants under specific parent
             >>> tenants = aci.lookupByClass('fvTenant', parentDn='uni')
-            >>> 
-            >>> # With query parameters
-            >>> tenants = aci.lookupByClass('fvTenant', propFilter='eq(fvTenant.name, "common")')
+            >>>
+            >>> # Include subtree data
+            >>> tenants = aci.lookupByClass('fvTenant', subtree='children')
+            >>>
+            >>> # Include operational data (check Cobra SDK docs for valid propInclude values)
+            >>> tenants = aci.lookupByClass('fvTenant', propInclude='all')
+            >>>
+            >>> # With additional query parameters
+            >>> tenants = aci.lookupByClass('fvTenant',
+            ...                            subtree='children',
+            ...                            propFilter='eq(fvTenant.name, "common")',
+            ...                            orderBy='fvTenant.name')
         """
-        return self._mo_dir.lookupByClass(className, parentDn=parentDn, **queryParams)
+        return self._mo_dir.lookupByClass(className, parentDn=parentDn, subtree=subtree, propInclude=propInclude, **queryParams)
 
-    def lookupByDn(self, dnStrOrDn, subtree='full', configOnly=True, **queryParams):
+    def lookupByDn(self, dnStrOrDn, subtree='full', propInclude='config-only', **queryParams):
         """
         Lookup managed object by distinguished name
-        
+
         Wrapper for MoDirectory.lookupByDn()
-        
+
         Args:
             dnStrOrDn: Distinguished name as string or Dn object (e.g., 'uni/tn-common')
-            subtree: Subtree scope ('full', 'children', 'no') - default: 'full'
-            configOnly: Retrieve only configuration data (exclude operational data) - default: True
-            **queryParams: Additional query parameters (propFilter, etc.)
-            
+            subtree: Subtree scope (same values as Cobra SDK MoDirectory.lookupByDn) - default: 'full'
+            propInclude: Property include mode (same values as Cobra SDK MoDirectory.lookupByDn) - default: 'config-only'
+            **queryParams: Additional query parameters (same as Cobra SDK MoDirectory.lookupByDn)
+
         Returns:
             Managed object or None
-            
+
         Example:
-            >>> # Full subtree lookup (default)
+            >>> # Full subtree lookup with config data only (default)
             >>> tenant = aci.lookupByDn('uni/tn-common')
-            >>> 
+            >>>
             >>> # Object only (no subtree)
             >>> tenant = aci.lookupByDn('uni/tn-common', subtree='no')
-            >>> 
-            >>> # Include operational data
-            >>> tenant = aci.lookupByDn('uni/tn-common', configOnly=False)
+            >>>
+            >>> # Include operational data (check Cobra SDK docs for valid propInclude values)
+            >>> tenant = aci.lookupByDn('uni/tn-common', propInclude='all')
+            >>>
+            >>> # With additional query parameters
+            >>> tenant = aci.lookupByDn('uni/tn-common',
+            ...                        subtree='children',
+            ...                        propFilter='eq(fvTenant.name, "common")')
         """
-        return self._mo_dir.lookupByDn(dnStrOrDn, subtree=subtree, configOnly=configOnly, **queryParams)
+        return self._mo_dir.lookupByDn(dnStrOrDn, subtree=subtree, propInclude=propInclude, **queryParams)
 
     def commit(self, configObject, sync=False):
         """
         Commit configuration changes to APIC
-        
+
         Wrapper for MoDirectory.commit()
-        
+
         Args:
             configObject: ConfigRequest object with changes
             sync: If True, wait for confirmation (default: False)
-            
+
         Returns:
             Response from APIC
-            
+
         Example:
             >>> from cobra.mit.request import ConfigRequest
             >>> from cobra.model.fv import Tenant
             >>> config_req = ConfigRequest()
             >>> config_req.addMo(Tenant(uni, 'new-tenant'))
-            >>> 
+            >>>
             >>> # Async commit (default)
             >>> aci.commit(config_req)
-            >>> 
+            >>>
             >>> # Sync commit (wait for confirmation)
             >>> aci.commit(config_req, sync=True)
         """
@@ -189,23 +205,23 @@ class ACIClient:
     def query(self, queryObject):
         """
         Execute a query against APIC
-        
+
         Wrapper for MoDirectory.query()
-        
+
         Args:
             queryObject: Query object (DnQuery, ClassQuery, TraceQuery, etc.)
-            
+
         Returns:
             Query results
-            
+
         Example:
             >>> from cobra.mit.request import ClassQuery, DnQuery
-            >>> 
+            >>>
             >>> # Class query
             >>> query = ClassQuery('fvTenant')
             >>> query.propFilter = 'eq(fvTenant.name, "common")'
             >>> tenants = aci.query(query)
-            >>> 
+            >>>
             >>> # DN query
             >>> query = DnQuery('uni/tn-common')
             >>> query.subtree = 'full'
