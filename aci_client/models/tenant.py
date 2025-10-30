@@ -1,6 +1,8 @@
+import json
 from dataclasses import dataclass
 from typing import ClassVar, Optional
 from cobra.model.fv import Tenant as FvTenant
+from cobra.mit.jsoncodec import toJSONStr
 
 
 @dataclass(frozen=True)
@@ -30,6 +32,18 @@ class Tenant:
         >>> # Access original Cobra object
         >>> print(tenant.mo.name)
         'common'
+        
+        >>> # Export to ACI JSON format
+        >>> aci_json = tenant.to_json()
+        >>> print(aci_json)
+        {
+          "fvTenant": {
+            "attributes": {
+              "dn": "uni/tn-common",
+              "name": "common"
+            }
+          }
+        }
     """
     CLASSNAME: ClassVar[str] = FvTenant.meta.moClassName  # 'fvTenant'
     PREFIX: ClassVar[str] = FvTenant.meta.rnPrefixes[0][0]   # 'tn-'
@@ -100,6 +114,49 @@ class Tenant:
         if include_mo:
             data['mo'] = self.mo
         return data
+    
+    def to_json(self, pretty: bool = True) -> str:
+        """
+        Convert to ACI standard JSON format
+        
+        Uses cobra.mit.jsoncodec.toJSONStr to generate
+        ACI-compliant JSON representation.
+        
+        Args:
+            pretty: Format JSON with indentation (default: True)
+        
+        Returns:
+            ACI JSON string representation
+            
+        Raises:
+            ValueError: If no Cobra MO is available
+            RuntimeError: If JSON conversion fails
+            
+        Example:
+            >>> tenant = Tenant.from_mo(cobra_tenant)
+            >>> json_str = tenant.to_json()
+            >>> print(json_str)
+            {
+              "fvTenant": {
+                "attributes": {
+                  "dn": "uni/tn-common",
+                  "name": "common",
+                  "descr": ""
+                }
+              }
+            }
+            
+            >>> # Compact format
+            >>> compact_json = tenant.to_json(pretty=False)
+        """
+        if self.mo is None:
+            raise ValueError("No Cobra MO available. Use Tenant.from_mo() to create from Cobra object.")
+        
+        try:
+            # Use cobra.mit.jsoncodec.toJSONStr with prettyPrint option
+            return toJSONStr(self.mo, prettyPrint=pretty)
+        except Exception as e:
+            raise RuntimeError(f"Failed to convert to ACI JSON: {e}")
     
     def __str__(self) -> str:
         """String representation"""
